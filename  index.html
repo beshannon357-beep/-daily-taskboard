@@ -1,0 +1,1972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Benny's Daily Taskboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --morning: #f59e0b;
+    --afternoon: #3b82f6;
+    --evening: #8b5cf6;
+    --bg: #0f0f13;
+    --surface: #1a1a24;
+    --surface2: #22222f;
+    --border: #2e2e40;
+    --text: #e8e8f0;
+    --muted: #6b6b85;
+    --green: #22c55e;
+    --red: #ef4444;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  /* HEADER */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header-left h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .date-pill {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 4px;
+    display: inline-block;
+  }
+
+  /* OVERALL PROGRESS */
+  .overall-progress {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .progress-label { font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .progress-bar-wrap {
+    flex: 1;
+    height: 8px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #22c55e, #3b82f6);
+    border-radius: 99px;
+    transition: width 0.4s ease;
+    width: 0%;
+  }
+  .progress-pct {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--green);
+    min-width: 36px;
+    text-align: right;
+  }
+
+  /* VOICE INPUT */
+  .voice-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 24px;
+  }
+  .voice-panel h2 { font-size: 13px; color: var(--muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .voice-row { display: flex; gap: 10px; align-items: flex-start; }
+  .voice-input-wrap {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    min-height: 44px;
+    font-size: 15px;
+    color: var(--text);
+    cursor: text;
+    position: relative;
+  }
+  .voice-input-wrap[contenteditable]:empty::before {
+    content: 'Speak or type a task...';
+    color: var(--muted);
+    pointer-events: none;
+  }
+  .voice-input-wrap:focus { outline: none; border-color: var(--afternoon); }
+
+  .mic-btn {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    border: none;
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 20px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+  .mic-btn:hover { background: #2d2d3e; }
+  .mic-btn.listening { background: var(--red); border-color: var(--red); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+
+  .add-btn {
+    height: 44px;
+    padding: 0 18px;
+    border-radius: 10px;
+    border: none;
+    background: var(--afternoon);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: opacity 0.2s;
+  }
+  .add-btn:hover { opacity: 0.85; }
+
+  /* TRANSCRIPT PREVIEW */
+  .transcript-preview {
+    display: none;
+    margin-top: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+  .transcript-preview .suggestion-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .suggestion-text { flex: 1; }
+  .suggestion-badges { display: flex; gap: 6px; align-items: center; }
+  .badge {
+    font-size: 11px; padding: 2px 8px; border-radius: 99px; font-weight: 600;
+  }
+  .badge.morning { background: rgba(245,158,11,0.2); color: var(--morning); }
+  .badge.afternoon { background: rgba(59,130,246,0.2); color: var(--afternoon); }
+  .badge.evening { background: rgba(139,92,246,0.2); color: var(--evening); }
+  .badge.business { background: rgba(34,197,94,0.15); color: #4ade80; }
+  .badge.personal { background: rgba(251,146,60,0.15); color: #fb923c; }
+  .badge.content { background: rgba(232,121,249,0.15); color: #e879f9; }
+  .badge.admin { background: rgba(148,163,184,0.15); color: #94a3b8; }
+
+  .confirm-btn {
+    padding: 4px 12px; border-radius: 8px; border: none;
+    background: var(--green); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+
+  /* TIME BLOCKS */
+  .blocks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media(max-width:900px) { .blocks { grid-template-columns: 1fr; } }
+
+  .block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .block-header {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .block-header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .block.morning .block-header::before { background: var(--morning); }
+  .block.afternoon .block-header::before { background: var(--afternoon); }
+  .block.evening .block-header::before { background: var(--evening); }
+
+  .block-title { font-size: 16px; font-weight: 700; }
+  .block-time { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .block-stats { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  .block-mini-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 99px;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+  .block-mini-fill {
+    height: 100%; border-radius: 99px; transition: width 0.4s;
+  }
+  .block.morning .block-mini-fill { background: var(--morning); }
+  .block.afternoon .block-mini-fill { background: var(--afternoon); }
+  .block.evening .block-mini-fill { background: var(--evening); }
+
+  /* CATEGORY SECTIONS inside block */
+  .cat-section { padding: 10px 14px 4px; }
+  .cat-section + .cat-section { border-top: 1px solid var(--border); }
+  .cat-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--muted);
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  /* TASKS */
+  .task-list { list-style: none; }
+  .task-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .task-item:last-child { border-bottom: none; }
+
+  .task-check {
+    width: 18px; height: 18px;
+    border: 2px solid var(--border);
+    border-radius: 5px;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-top: 1px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+    background: var(--surface2);
+  }
+  .task-check:hover { border-color: var(--green); }
+  .task-item.done .task-check {
+    background: var(--green);
+    border-color: var(--green);
+  }
+  .task-check::after { content: ''; }
+  .task-item.done .task-check::after { content: '✓'; color: #fff; font-size: 11px; font-weight: 700; }
+
+  .task-text {
+    flex: 1;
+    font-size: 14px;
+    line-height: 1.4;
+    transition: all 0.2s;
+  }
+  .task-item.done .task-text {
+    text-decoration: line-through;
+    color: var(--muted);
+  }
+
+  .task-delete {
+    opacity: 0;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+    transition: opacity 0.15s, color 0.15s;
+  }
+  .task-item:hover .task-delete { opacity: 1; }
+  .task-delete:hover { color: var(--red); }
+
+  .task-text { cursor: text; }
+  .task-text:hover { color: #fff; }
+  .task-edit-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--afternoon);
+    border-radius: 6px;
+    padding: 2px 6px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text);
+    outline: none;
+  }
+
+  .task-controls {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+  }
+  .task-item:hover .task-controls { opacity: 1; }
+  .task-move {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0 3px;
+    line-height: 1;
+    transition: color 0.15s;
+  }
+  .task-move:hover:not(:disabled) { color: var(--afternoon); }
+  .task-move:disabled { opacity: 0.25; cursor: default; }
+
+  .task-item.dragging { opacity: 0.35; }
+  .task-item[draggable="true"] { cursor: grab; }
+  .block.drag-over {
+    outline: 2px dashed var(--afternoon);
+    outline-offset: -2px;
+  }
+
+  .empty-state {
+    padding: 12px 0;
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    font-style: italic;
+  }
+
+  /* FOOTER */
+  .footer {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+  }
+  .reset-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--muted); font-size: 12px;
+    padding: 4px 12px; border-radius: 8px; cursor: pointer;
+  }
+  .reset-btn:hover { color: var(--red); border-color: var(--red); }
+
+  /* GRATITUDE */
+  .gratitude-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .gratitude-section .section-header {
+    padding: 14px 18px 10px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .gratitude-section .section-header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #f59e0b, #f97316);
+  }
+  .section-title { font-size: 16px; font-weight: 700; }
+  .section-subtitle { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .gratitude-items {
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .gratitude-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .gratitude-num {
+    width: 22px; height: 22px;
+    background: linear-gradient(135deg, #f59e0b, #f97316);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: #fff;
+    flex-shrink: 0; margin-top: 2px;
+  }
+  .gratitude-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 9px 13px;
+    font-size: 14px;
+    color: var(--text);
+    resize: none;
+    font-family: inherit;
+    min-height: 40px;
+    transition: border-color 0.2s;
+    line-height: 1.4;
+  }
+  .gratitude-input:focus { outline: none; border-color: #f59e0b; }
+  .gratitude-input::placeholder { color: var(--muted); }
+
+  /* BRAIN DUMP / JOURNAL */
+  .journal-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-top: 20px;
+  }
+  .journal-section .section-header {
+    padding: 14px 18px 10px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .journal-section .section-header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #8b5cf6, #ec4899);
+  }
+  .journal-body { padding: 14px 18px; }
+  .journal-prompts {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .prompt-chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .prompt-chip:hover { border-color: #8b5cf6; color: #c4b5fd; }
+
+  .journal-textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 13px 15px;
+    font-size: 14px;
+    color: var(--text);
+    font-family: inherit;
+    resize: vertical;
+    min-height: 160px;
+    line-height: 1.6;
+    transition: border-color 0.2s;
+  }
+  .journal-textarea:focus { outline: none; border-color: #8b5cf6; }
+  .journal-textarea::placeholder { color: var(--muted); }
+  .journal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+  }
+  .word-count { font-size: 12px; color: var(--muted); }
+  .journal-saved {
+    font-size: 12px;
+    color: var(--green);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .journal-saved.show { opacity: 1; }
+
+  /* MIC for journal */
+  .journal-mic-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    align-items: center;
+  }
+  .journal-mic-btn {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .journal-mic-btn:hover { background: #2d2d3e; }
+  .journal-mic-btn.listening { background: var(--red); border-color: var(--red); animation: pulse 1s infinite; }
+  .journal-mic-hint { font-size: 12px; color: var(--muted); }
+
+  /* DAY FOLDERS */
+  .header-right { display: flex; align-items: center; gap: 8px; }
+
+  .google-status {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  .google-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+  .google-status.connected .google-dot { background: var(--green); }
+  .google-status.error .google-dot { background: var(--red); }
+  .google-connect-btn {
+    background: var(--afternoon);
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .google-connect-btn.disconnect { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+  .folder-select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    max-width: 220px;
+  }
+  .folder-select:focus { outline: none; border-color: var(--afternoon); }
+  .past-day-banner {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: rgba(245,158,11,0.12);
+    border: 1px solid rgba(245,158,11,0.4);
+    border-radius: 10px;
+    padding: 10px 16px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: var(--morning);
+  }
+  .past-day-banner.show { display: flex; }
+  .back-today-btn {
+    background: var(--morning);
+    color: #1a1206;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  /* HEALTH SECTION */
+  .health-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-top: 20px;
+  }
+  .health-section .section-header { position: relative; padding: 14px 18px 10px; border-bottom: 1px solid var(--border); }
+  .health-section .section-header::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, #22c55e, #06b6d4);
+  }
+  .health-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 18px; }
+
+  .health-subsection { }
+  .health-sub-title {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px;
+    color: var(--muted); font-weight: 700; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .health-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media(max-width:600px) { .health-grid-2 { grid-template-columns: 1fr; } }
+
+  .health-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+  .health-card-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
+  .health-field-row { display: flex; gap: 8px; }
+  .health-field { flex: 1; }
+  .health-field label { display: block; font-size: 10px; color: var(--muted); margin-bottom: 3px; }
+  .health-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 6px 8px;
+    font-size: 13px;
+    color: var(--text);
+    font-family: inherit;
+  }
+  .health-input:focus { outline: none; border-color: var(--green); }
+
+  .meal-table { display: flex; flex-direction: column; gap: 8px; }
+  .meal-row {
+    display: grid;
+    grid-template-columns: 90px 1.6fr 0.7fr 0.7fr 0.7fr 0.7fr;
+    gap: 6px;
+    align-items: center;
+  }
+  .meal-row-header {
+    grid-template-columns: 90px 1.6fr 0.7fr 0.7fr 0.7fr 0.7fr;
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  .meal-name { font-size: 12px; font-weight: 700; color: var(--text); }
+  @media(max-width:700px) {
+    .meal-row, .meal-row-header { grid-template-columns: 1fr; gap: 4px; }
+    .meal-row { background: var(--surface2); border-radius: 8px; padding: 8px; margin-bottom: 2px; }
+    .meal-row-header { display: none; }
+  }
+
+  .workout-routine-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-size: 13px;
+    color: var(--text);
+    font-family: inherit;
+    resize: vertical;
+    min-height: 50px;
+    margin-bottom: 10px;
+  }
+  .workout-routine-input:focus { outline: none; border-color: var(--green); }
+
+  .exercise-list { display: flex; flex-direction: column; gap: 6px; }
+  .exercise-row {
+    display: grid;
+    grid-template-columns: 1.6fr 0.7fr 0.7fr 28px;
+    gap: 6px;
+    align-items: center;
+  }
+  @media(max-width:600px) { .exercise-row { grid-template-columns: 1fr 1fr 1fr 28px; } }
+  .exercise-remove {
+    background: none; border: none; color: var(--muted);
+    font-size: 16px; cursor: pointer; line-height: 1;
+  }
+  .exercise-remove:hover { color: var(--red); }
+  .add-exercise-btn {
+    margin-top: 8px;
+    background: var(--surface2);
+    border: 1px dashed var(--border);
+    color: var(--muted);
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    width: 100%;
+  }
+  .add-exercise-btn:hover { color: var(--green); border-color: var(--green); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>Benny's Daily Taskboard</h1>
+    <span class="date-pill" id="dateDisplay"></span>
+  </div>
+  <div class="header-right">
+    <div class="google-status" id="googleStatus">
+      <span class="google-dot"></span>
+      <span id="googleStatusText">Not connected</span>
+      <button class="google-connect-btn" id="googleConnectBtn" onclick="connectGoogle()">Connect Google</button>
+    </div>
+    <select class="folder-select" id="folderSelect" onchange="onFolderChange(this.value)" title="Browse past days">
+      <option value="">📁 Day folders…</option>
+    </select>
+  </div>
+</div>
+
+<div class="past-day-banner" id="pastDayBanner">
+  <span>📁 Viewing <strong id="pastDayLabel"></strong> — this is a saved day, not today.</span>
+  <button class="back-today-btn" onclick="goToToday()">Back to Today</button>
+</div>
+
+<!-- Overall Progress -->
+<div class="overall-progress">
+  <span class="progress-label">Today's Progress</span>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-fill" id="overallBar"></div>
+  </div>
+  <span class="progress-pct" id="overallPct">0%</span>
+</div>
+
+<!-- Voice / Text Input -->
+<div class="voice-panel">
+  <h2>🎤 Add a Task</h2>
+  <div class="voice-row">
+    <div class="voice-input-wrap" id="taskInput" contenteditable="true"></div>
+    <button class="mic-btn" id="micBtn" title="Hold to speak">🎙️</button>
+    <button class="add-btn" onclick="addTaskFromInput()">Add</button>
+  </div>
+  <div class="transcript-preview" id="transcriptPreview">
+    <div class="suggestion-row">
+      <span class="suggestion-text" id="suggestionText"></span>
+      <div class="suggestion-badges" id="suggestionBadges"></div>
+      <button class="confirm-btn" onclick="confirmSuggestion()">✓ Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- Time Blocks -->
+<div class="blocks">
+  <!-- MORNING -->
+  <div class="block morning" id="block-morning" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" ondrop="handleDrop(event,'morning')">
+    <div class="block-header">
+      <div class="block-title">🌅 Morning</div>
+      <div class="block-time">8:00 AM – 12:00 PM</div>
+      <div class="block-stats" id="stats-morning">0 / 0 tasks</div>
+      <div class="block-mini-bar"><div class="block-mini-fill" id="bar-morning" style="width:0%"></div></div>
+    </div>
+    <div id="tasks-morning"></div>
+  </div>
+
+  <!-- AFTERNOON -->
+  <div class="block afternoon" id="block-afternoon" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" ondrop="handleDrop(event,'afternoon')">
+    <div class="block-header">
+      <div class="block-title">☀️ Afternoon</div>
+      <div class="block-time">12:00 PM – 4:00 PM</div>
+      <div class="block-stats" id="stats-afternoon">0 / 0 tasks</div>
+      <div class="block-mini-bar"><div class="block-mini-fill" id="bar-afternoon" style="width:0%"></div></div>
+    </div>
+    <div id="tasks-afternoon"></div>
+  </div>
+
+  <!-- EVENING -->
+  <div class="block evening" id="block-evening" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" ondrop="handleDrop(event,'evening')">
+    <div class="block-header">
+      <div class="block-title">🌙 Evening</div>
+      <div class="block-time">4:00 PM – 8:00 PM</div>
+      <div class="block-stats" id="stats-evening">0 / 0 tasks</div>
+      <div class="block-mini-bar"><div class="block-mini-fill" id="bar-evening" style="width:0%"></div></div>
+    </div>
+    <div id="tasks-evening"></div>
+  </div>
+</div>
+
+<!-- Health & Workout Section -->
+<div class="health-section" style="margin-top:20px;">
+  <div class="section-header">
+    <div class="section-title">🩺 Health & Workout</div>
+    <div class="section-subtitle">Blood sugar, blood pressure, insulin, meals, and today's workout</div>
+  </div>
+  <div class="health-body">
+
+    <!-- Blood Sugar & Insulin -->
+    <div class="health-subsection">
+      <div class="health-sub-title">🩸 Blood Sugar & Insulin</div>
+      <div class="health-grid-2">
+        <div class="health-card">
+          <div class="health-card-label">Waking</div>
+          <div class="health-field-row">
+            <div class="health-field">
+              <label>Blood sugar (mg/dL)</label>
+              <input class="health-input" id="bgWaking" type="text" inputmode="numeric" placeholder="e.g. 110" oninput="saveHealth()">
+            </div>
+            <div class="health-field">
+              <label>Insulin taken (units)</label>
+              <input class="health-input" id="insulinWaking" type="text" placeholder="e.g. 8u Humalog" oninput="saveHealth()">
+            </div>
+          </div>
+        </div>
+        <div class="health-card">
+          <div class="health-card-label">Bedtime</div>
+          <div class="health-field-row">
+            <div class="health-field">
+              <label>Blood sugar (mg/dL)</label>
+              <input class="health-input" id="bgBedtime" type="text" inputmode="numeric" placeholder="e.g. 130" oninput="saveHealth()">
+            </div>
+            <div class="health-field">
+              <label>Insulin taken (units)</label>
+              <input class="health-input" id="insulinBedtime" type="text" placeholder="e.g. 6u Lantus" oninput="saveHealth()">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Blood Pressure -->
+    <div class="health-subsection">
+      <div class="health-sub-title">❤️ Blood Pressure</div>
+      <div class="health-grid-2">
+        <div class="health-card">
+          <div class="health-card-label">Waking</div>
+          <div class="health-field-row">
+            <div class="health-field">
+              <label>Systolic</label>
+              <input class="health-input" id="bpWakingSys" type="text" inputmode="numeric" placeholder="120" oninput="saveHealth()">
+            </div>
+            <div class="health-field">
+              <label>Diastolic</label>
+              <input class="health-input" id="bpWakingDia" type="text" inputmode="numeric" placeholder="80" oninput="saveHealth()">
+            </div>
+          </div>
+        </div>
+        <div class="health-card">
+          <div class="health-card-label">Bedtime</div>
+          <div class="health-field-row">
+            <div class="health-field">
+              <label>Systolic</label>
+              <input class="health-input" id="bpBedSys" type="text" inputmode="numeric" placeholder="120" oninput="saveHealth()">
+            </div>
+            <div class="health-field">
+              <label>Diastolic</label>
+              <input class="health-input" id="bpBedDia" type="text" inputmode="numeric" placeholder="80" oninput="saveHealth()">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Meals & Macros -->
+    <div class="health-subsection">
+      <div class="health-sub-title">🍽️ Meals & Macros</div>
+      <div class="meal-table">
+        <div class="meal-row meal-row-header">
+          <span>Meal</span><span>Food</span><span>Carbs</span><span>Protein</span><span>Fat</span><span>Cal</span>
+        </div>
+        <div class="meal-row" data-meal="0">
+          <span class="meal-name">Breakfast</span>
+          <input class="health-input" id="meal0Food" placeholder="What you ate" oninput="saveHealth()">
+          <input class="health-input" id="meal0Carbs" placeholder="g" inputmode="numeric" oninput="saveHealth()">
+          <input class="health-input" id="meal0Protein" placeholder="g" inputmode="numeric" oninput="saveHealth()">
+          <input class="health-input" id="meal0Fat" placeholder="g" inputmode="numeric" oninput="saveHealth()">
+          <input class="health-input" id="meal0Cals" placeholder="kcal" inputmode="numeric" oninput="saveHealth()">
+        </div>
+        <div class="meal-row" data-meal="1">
+          <span class="meal-name">Lunch</span>
+          <input class="health-input" id="meal1Food" placeholder="What you ate" oninput="saveHealth()">
+          <input class="health-input" id="meal1Carbs" placeholder="g" inputmode="numeric" oninput="saveHealth()">
+          <input class="health-input" id="meal1Protein" placeholder="g" inputmode="numeric" oninput="saveHealth()">
+          <input class="health-input" id="meal1Fat" placeholder="g" inputmode="numeric" oninput="saveHealth()">
+          <input class="health-input" id="meal1Cals" placeholder="kcal" inputmode="numeric" oninput="saveHealth()">
+        </div>
+        <div class="meal-row" data-meal="2">
+          <span class="meal-name">Dinner</span>
+          <input class="health-input" id="meal2Food" placeholder="What you ate" oninput="saveHealth()">
+          <input class="health-input" id="meal2Carbs" placeholder="g" inputmode="numeric" oninput="saveHealth()">
+          <input class="health-input" id="meal2Protein" placeholder="g" inputmode="numeric" oninput="saveHealth()">
+          <input class="health-input" id="meal2Fat" placeholder="g" inputmode="numeric" oninput="saveHealth()">
+          <input class="health-input" id="meal2Cals" placeholder="kcal" inputmode="numeric" oninput="saveHealth()">
+        </div>
+        <div class="meal-row" data-meal="3">
+          <span class="meal-name">Snacks</span>
+          <input class="health-input" id="meal3Food" placeholder="What you ate" oninput="saveHealth()">
+          <input class="health-input" id="meal3Carbs" placeholder="g" inputmode="numeric" oninput="saveHealth()">
+          <input class="health-input" id="meal3Protein" placeholder="g" inputmode="numeric" oninput="saveHealth()">
+          <input class="health-input" id="meal3Fat" placeholder="g" inputmode="numeric" oninput="saveHealth()">
+          <input class="health-input" id="meal3Cals" placeholder="kcal" inputmode="numeric" oninput="saveHealth()">
+        </div>
+      </div>
+    </div>
+
+    <!-- Workout -->
+    <div class="health-subsection">
+      <div class="health-sub-title">🏋️ Gym & Workout</div>
+      <textarea class="workout-routine-input" id="workoutRoutine" placeholder="Today's routine — e.g. Push day: chest, shoulders, triceps" oninput="saveHealth()"></textarea>
+      <div class="exercise-list" id="exerciseList"></div>
+      <button class="add-exercise-btn" onclick="addExerciseRow()">+ Add exercise</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- Gratitude Section -->
+<div class="gratitude-section" style="margin-top:24px;">
+  <div class="section-header">
+    <div class="section-title">🙏 Daily Gratitude</div>
+    <div class="section-subtitle">3 things you're grateful for today</div>
+  </div>
+  <div class="gratitude-items">
+    <div class="gratitude-item">
+      <div class="gratitude-num">1</div>
+      <textarea class="gratitude-input" id="gratitude1" placeholder="I'm grateful for…" rows="1" oninput="saveGratitude()"></textarea>
+    </div>
+    <div class="gratitude-item">
+      <div class="gratitude-num">2</div>
+      <textarea class="gratitude-input" id="gratitude2" placeholder="I'm grateful for…" rows="1" oninput="saveGratitude()"></textarea>
+    </div>
+    <div class="gratitude-item">
+      <div class="gratitude-num">3</div>
+      <textarea class="gratitude-input" id="gratitude3" placeholder="I'm grateful for…" rows="1" oninput="saveGratitude()"></textarea>
+    </div>
+  </div>
+</div>
+
+<!-- Brain Dump / Night Journal -->
+<div class="journal-section">
+  <div class="section-header">
+    <div class="section-title">🧠 Brain Dump</div>
+    <div class="section-subtitle">Empty your mind — thoughts, feelings, wins, worries, ideas</div>
+  </div>
+  <div class="journal-body">
+    <div class="journal-prompts">
+      <span class="prompt-chip" onclick="appendPrompt('What went well today? ')">✅ What went well</span>
+      <span class="prompt-chip" onclick="appendPrompt('What would I do differently? ')">🔄 Do differently</span>
+      <span class="prompt-chip" onclick="appendPrompt('Tomorrow I need to… ')">📋 Tomorrow</span>
+      <span class="prompt-chip" onclick="appendPrompt('Right now I\'m feeling… ')">💭 Feelings</span>
+    </div>
+    <div class="journal-mic-row">
+      <button class="journal-mic-btn" id="journalMicBtn" title="Speak your thoughts">🎙️</button>
+      <span class="journal-mic-hint">Click to dictate into the journal</span>
+    </div>
+    <textarea class="journal-textarea" id="journalText"
+      placeholder="Start writing… no rules, no pressure. Just get it out."
+      oninput="saveJournal(); updateWordCount()"></textarea>
+    <div class="journal-footer">
+      <span class="word-count" id="wordCount">0 words</span>
+      <span class="journal-saved" id="journalSaved">✓ Saved</span>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <button class="reset-btn" onclick="resetDay()">🔄 Reset Day</button>
+  <span>Tasks auto-save to your browser</span>
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+const CATEGORIES = {
+  calendar: { label: '📅 From Google Calendar', icon: '📅', keywords: [] },
+  business: { label: '💼 Business & MedSpa', icon: '💼', keywords: ['call','meeting','client','medspa','spa','ai','strategy','sales','deal','proposal','review','pitch','partner','invoice send','revenue','marketing plan','clinic','botox','filler','inject','staff','team','hire','train'] },
+  content:  { label: '📣 Content & Marketing', icon: '📣', keywords: ['post','instagram','caption','reel','video','content','email blast','newsletter','outreach','dm','social','tiktok','youtube','ad','creative','copy','write','publish','brand','canva'] },
+  personal: { label: '🏃 Personal & Health',   icon: '🏃', keywords: ['gym','workout','run','walk','health','doctor','appointment','eat','lunch','dinner','groceries','family','personal','sleep','meditate','therapy','dentist','errand','pick up','drop off','kids'] },
+  admin:    { label: '🗂️ Admin & Finances',    icon: '🗂️', keywords: ['invoice','pay','bill','finance','bank','tax','schedule','book','calendar','plan','organize','follow up','follow-up','email','respond','reply','send','report','track','log','update','file','paperwork'] }
+};
+
+const BLOCKS = {
+  morning:   { keywords: ['morning','early','am','breakfast','wake','first thing','8','9','10','11','call','focus','deep work','strategy'] },
+  afternoon: ['lunch','noon','pm','afternoon','meeting','call','check in','review','12','1','2','3'],
+  evening:   ['evening','end of day','night','wrap','close','4','5','6','7','dinner','recap','plan tomorrow']
+};
+
+function classifyTask(text) {
+  const t = text.toLowerCase();
+
+  // Determine category
+  let cat = 'admin';
+  let catScore = 0;
+  for (const [key, cfg] of Object.entries(CATEGORIES)) {
+    const score = cfg.keywords.filter(kw => t.includes(kw)).length;
+    if (score > catScore) { catScore = score; cat = key; }
+  }
+
+  // Determine time block
+  let block = 'morning';
+  const now = new Date().getHours();
+  if (now >= 12 && now < 16) block = 'afternoon';
+  if (now >= 16) block = 'evening';
+
+  // Override with text keywords
+  const blockKws = { morning: BLOCKS.morning.keywords || BLOCKS.morning, afternoon: BLOCKS.afternoon, evening: BLOCKS.evening };
+  for (const [b, kws] of Object.entries(blockKws)) {
+    if (kws.some && kws.some(kw => t.includes(kw))) { block = b; break; }
+  }
+
+  return { block, cat };
+}
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+const TASK_PREFIX = 'bennytasks_';
+const GRAT_PREFIX = 'bennyGratitude_';
+const JOURNAL_PREFIX = 'bennyJournal_';
+const HEALTH_PREFIX = 'bennyHealth_';
+
+let actualToday = new Date().toDateString(); // the real "now" date, ticks forward at midnight
+let currentDate = actualToday;               // the date currently shown on screen
+let tasks = [];
+
+function loadTasks() {
+  try {
+    const saved = localStorage.getItem(TASK_PREFIX + currentDate);
+    tasks = saved ? JSON.parse(saved) : [];
+  } catch { tasks = []; }
+}
+
+function saveTasks() {
+  localStorage.setItem(TASK_PREFIX + currentDate, JSON.stringify(tasks));
+  refreshFolderList();
+  queueSheetsSave();
+}
+
+// ── RENDER ───────────────────────────────────────────────────────────────────
+function render() {
+  const blocks = ['morning','afternoon','evening'];
+  const cats = Object.keys(CATEGORIES);
+
+  blocks.forEach(block => {
+    const container = document.getElementById('tasks-' + block);
+    container.innerHTML = '';
+    const blockTasks = tasks.filter(t => t.block === block);
+    const done = blockTasks.filter(t => t.done).length;
+    const total = blockTasks.length;
+    document.getElementById('stats-' + block).textContent = `${done} / ${total} tasks`;
+    document.getElementById('bar-' + block).style.width = total ? `${Math.round(done/total*100)}%` : '0%';
+
+    cats.forEach(cat => {
+      const catTasks = blockTasks.filter(t => t.cat === cat);
+      if (catTasks.length === 0) return;
+
+      const cfg = CATEGORIES[cat];
+      const section = document.createElement('div');
+      section.className = 'cat-section';
+      section.innerHTML = `<div class="cat-label"><span>${cfg.icon}</span>${cfg.label.replace(cfg.icon,'').trim()}</div>`;
+
+      const ul = document.createElement('ul');
+      ul.className = 'task-list';
+      catTasks.forEach(task => {
+        const li = document.createElement('li');
+        li.className = 'task-item' + (task.done ? ' done' : '');
+        li.draggable = true;
+        li.dataset.id = task.id;
+        li.addEventListener('dragstart', handleDragStart);
+        li.addEventListener('dragend', handleDragEnd);
+        const blockIdx = BLOCK_ORDER.indexOf(task.block);
+        li.innerHTML = `
+          <div class="task-check" onclick="toggleTask('${task.id}')"></div>
+          <span class="task-text" onclick="startEditTask('${task.id}', this)">${escHtml(task.text)}</span>
+          <div class="task-controls">
+            <button class="task-move" onclick="moveTask('${task.id}', -1)" title="Move to earlier section" ${blockIdx <= 0 ? 'disabled' : ''}>‹</button>
+            <button class="task-move" onclick="moveTask('${task.id}', 1)" title="Move to later section" ${blockIdx >= BLOCK_ORDER.length - 1 ? 'disabled' : ''}>›</button>
+            <button class="task-delete" onclick="deleteTask('${task.id}')" title="Remove">×</button>
+          </div>
+        `;
+        ul.appendChild(li);
+      });
+      section.appendChild(ul);
+      container.appendChild(section);
+    });
+
+    if (blockTasks.length === 0) {
+      container.innerHTML = '<div class="empty-state">No tasks yet — add one above</div>';
+    }
+  });
+
+  // Overall progress
+  const total = tasks.length;
+  const done = tasks.filter(t => t.done).length;
+  const pct = total ? Math.round(done / total * 100) : 0;
+  document.getElementById('overallBar').style.width = pct + '%';
+  document.getElementById('overallPct').textContent = pct + '%';
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── TASK ACTIONS ─────────────────────────────────────────────────────────────
+function addTask(text, block, cat) {
+  if (!text.trim()) return;
+  const task = { id: Date.now() + '_' + Math.random(), text: text.trim(), block, cat, done: false };
+  tasks.push(task);
+  saveTasks();
+  render();
+  syncTaskToCalendar(task);
+}
+
+function toggleTask(id) {
+  const t = tasks.find(t => t.id === id);
+  if (t) { t.done = !t.done; saveTasks(); render(); }
+}
+
+// ── MOVE BETWEEN TIME SECTIONS ─────────────────────────────────────────────
+const BLOCK_ORDER = ['morning', 'afternoon', 'evening'];
+
+function moveTask(id, dir) {
+  const task = tasks.find(t => t.id === id);
+  if (!task) return;
+  const idx = BLOCK_ORDER.indexOf(task.block);
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= BLOCK_ORDER.length) return;
+  task.block = BLOCK_ORDER[newIdx];
+  saveTasks();
+  render();
+  syncTaskToCalendar(task);
+}
+
+function setTaskBlock(id, block) {
+  const task = tasks.find(t => t.id === id);
+  if (!task || !BLOCK_ORDER.includes(block) || task.block === block) return;
+  task.block = block;
+  saveTasks();
+  render();
+  syncTaskToCalendar(task);
+}
+
+// ── EDIT IN PLACE ─────────────────────────────────────────────────────────
+function startEditTask(id, el) {
+  if (el.querySelector('input')) return; // already editing
+  const task = tasks.find(t => t.id === id);
+  if (!task) return;
+
+  const original = task.text;
+  el.innerHTML = '';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'task-edit-input';
+  input.value = original;
+  el.appendChild(input);
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+
+  let committed = false;
+  const commit = () => {
+    if (committed) return;
+    committed = true;
+    const val = input.value.trim();
+    if (val) task.text = val;
+    saveTasks();
+    render();
+    syncTaskToCalendar(task);
+  };
+  const cancel = () => {
+    if (committed) return;
+    committed = true;
+    render();
+  };
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+  });
+  input.addEventListener('blur', commit);
+  input.addEventListener('click', e => e.stopPropagation());
+}
+
+// ── DRAG AND DROP BETWEEN TIME SECTIONS ─────────────────────────────────────
+let draggedId = null;
+
+function handleDragStart(e) {
+  draggedId = e.currentTarget.dataset.id;
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', draggedId);
+}
+
+function handleDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+  draggedId = null;
+  document.querySelectorAll('.block.drag-over').forEach(el => el.classList.remove('drag-over'));
+}
+
+function allowDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add('drag-over');
+}
+
+function dragLeave(e) {
+  if (e.currentTarget === e.target) e.currentTarget.classList.remove('drag-over');
+}
+
+function handleDrop(e, block) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const id = e.dataTransfer.getData('text/plain') || draggedId;
+  setTaskBlock(id, block);
+}
+
+function deleteTask(id) {
+  const task = tasks.find(t => t.id === id);
+  tasks = tasks.filter(t => t.id !== id);
+  saveTasks();
+  render();
+  if (task) deleteCalendarEvent(task);
+}
+
+function resetDay() {
+  if (confirm(`Clear all tasks, gratitude, journal, and health log for ${currentDate}?`)) {
+    tasks = [];
+    saveTasks();
+    render();
+    localStorage.removeItem(GRAT_PREFIX + currentDate);
+    localStorage.removeItem(JOURNAL_PREFIX + currentDate);
+    localStorage.removeItem(HEALTH_PREFIX + currentDate);
+    ['gratitude1','gratitude2','gratitude3'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('journalText').value = '';
+    updateWordCount();
+    health = emptyHealth();
+    renderHealthFields();
+    refreshFolderList();
+  }
+}
+
+// ── INPUT ─────────────────────────────────────────────────────────────────────
+let pendingSuggestion = null;
+
+function addTaskFromInput() {
+  const input = document.getElementById('taskInput');
+  const text = input.innerText.trim();
+  if (!text) return;
+  const { block, cat } = classifyTask(text);
+  addTask(text, block, cat);
+  input.innerText = '';
+  hideSuggestion();
+}
+
+function showSuggestion(text) {
+  if (!text.trim()) return;
+  const { block, cat } = classifyTask(text);
+  pendingSuggestion = { text, block, cat };
+
+  const blockLabels = { morning: '🌅 Morning', afternoon: '☀️ Afternoon', evening: '🌙 Evening' };
+  const catLabels = { business: 'Business', content: 'Content', personal: 'Personal', admin: 'Admin' };
+
+  document.getElementById('suggestionText').textContent = text;
+  document.getElementById('suggestionBadges').innerHTML = `
+    <span class="badge ${block}">${blockLabels[block]}</span>
+    <span class="badge ${cat}">${catLabels[cat]}</span>
+  `;
+  document.getElementById('transcriptPreview').style.display = 'block';
+}
+
+function hideSuggestion() {
+  document.getElementById('transcriptPreview').style.display = 'none';
+  pendingSuggestion = null;
+}
+
+function confirmSuggestion() {
+  if (pendingSuggestion) {
+    addTask(pendingSuggestion.text, pendingSuggestion.block, pendingSuggestion.cat);
+    document.getElementById('taskInput').innerText = '';
+    hideSuggestion();
+  }
+}
+
+// Enter key in input
+document.getElementById('taskInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    addTaskFromInput();
+  }
+});
+document.getElementById('taskInput').addEventListener('input', e => {
+  const text = e.target.innerText.trim();
+  if (text.length > 3) showSuggestion(text);
+  else hideSuggestion();
+});
+
+// ── VOICE ─────────────────────────────────────────────────────────────────────
+const micBtn = document.getElementById('micBtn');
+let recognition = null;
+let listening = false;
+
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+
+if (SR) {
+  recognition = new SR();
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+
+  recognition.onresult = (e) => {
+    let transcript = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      transcript += e.results[i][0].transcript;
+    }
+    document.getElementById('taskInput').innerText = transcript;
+    if (e.results[e.results.length - 1].isFinal) {
+      showSuggestion(transcript);
+    }
+  };
+
+  recognition.onend = () => {
+    listening = false;
+    micBtn.classList.remove('listening');
+    micBtn.textContent = '🎙️';
+  };
+
+  recognition.onerror = () => {
+    listening = false;
+    micBtn.classList.remove('listening');
+    micBtn.textContent = '🎙️';
+  };
+
+  micBtn.addEventListener('click', () => {
+    if (listening) {
+      recognition.stop();
+    } else {
+      recognition.start();
+      listening = true;
+      micBtn.classList.add('listening');
+      micBtn.textContent = '⏹️';
+    }
+  });
+} else {
+  micBtn.title = 'Voice not supported in this browser — use Chrome';
+  micBtn.style.opacity = '0.4';
+}
+
+// ── GRATITUDE ─────────────────────────────────────────────────────────────────
+function saveGratitude() {
+  const data = {
+    g1: document.getElementById('gratitude1').value,
+    g2: document.getElementById('gratitude2').value,
+    g3: document.getElementById('gratitude3').value,
+  };
+  localStorage.setItem(GRAT_PREFIX + currentDate, JSON.stringify(data));
+  refreshFolderList();
+  queueSheetsSave();
+}
+
+function loadGratitude() {
+  ['gratitude1','gratitude2','gratitude3'].forEach(id => document.getElementById(id).value = '');
+  try {
+    const saved = localStorage.getItem(GRAT_PREFIX + currentDate);
+    if (!saved) return;
+    const data = JSON.parse(saved);
+    document.getElementById('gratitude1').value = data.g1 || '';
+    document.getElementById('gratitude2').value = data.g2 || '';
+    document.getElementById('gratitude3').value = data.g3 || '';
+  } catch {}
+}
+
+// auto-resize gratitude textareas
+document.querySelectorAll('.gratitude-input').forEach(ta => {
+  ta.addEventListener('input', () => {
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
+  });
+});
+
+// ── JOURNAL ───────────────────────────────────────────────────────────────────
+let journalSaveTimer = null;
+
+function saveJournal() {
+  clearTimeout(journalSaveTimer);
+  journalSaveTimer = setTimeout(() => {
+    localStorage.setItem(JOURNAL_PREFIX + currentDate, document.getElementById('journalText').value);
+    refreshFolderList();
+    queueSheetsSave();
+    const el = document.getElementById('journalSaved');
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 1800);
+  }, 600);
+}
+
+function loadJournal() {
+  document.getElementById('journalText').value = '';
+  try {
+    const saved = localStorage.getItem(JOURNAL_PREFIX + currentDate);
+    if (saved) document.getElementById('journalText').value = saved;
+  } catch {}
+  updateWordCount();
+}
+
+function updateWordCount() {
+  const text = document.getElementById('journalText').value.trim();
+  const count = text ? text.split(/\s+/).length : 0;
+  document.getElementById('wordCount').textContent = count + (count === 1 ? ' word' : ' words');
+}
+
+function appendPrompt(text) {
+  const ta = document.getElementById('journalText');
+  const cur = ta.value;
+  ta.value = cur + (cur && !cur.endsWith('\n') ? '\n\n' : '') + text;
+  ta.focus();
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+  updateWordCount();
+  saveJournal();
+}
+
+// Journal mic (voice input appends to journal)
+const journalMicBtn = document.getElementById('journalMicBtn');
+if (SR) {
+  let journalListening = false;
+  const journalRec = new SR();
+  journalRec.continuous = false;
+  journalRec.interimResults = true;
+  journalRec.lang = 'en-US';
+
+  let journalBase = '';
+
+  journalRec.onresult = (e) => {
+    const interim = Array.from(e.results).map(r => r[0].transcript).join('');
+    document.getElementById('journalText').value = journalBase + interim;
+    updateWordCount();
+    if (e.results[e.results.length - 1].isFinal) {
+      journalBase = document.getElementById('journalText').value + ' ';
+      saveJournal();
+    }
+  };
+
+  journalRec.onend = () => {
+    journalListening = false;
+    journalMicBtn.classList.remove('listening');
+    journalMicBtn.textContent = '🎙️';
+  };
+
+  journalRec.onerror = () => {
+    journalListening = false;
+    journalMicBtn.classList.remove('listening');
+    journalMicBtn.textContent = '🎙️';
+  };
+
+  journalMicBtn.addEventListener('click', () => {
+    if (journalListening) {
+      journalRec.stop();
+    } else {
+      journalBase = document.getElementById('journalText').value;
+      if (journalBase && !journalBase.endsWith(' ')) journalBase += ' ';
+      journalRec.start();
+      journalListening = true;
+      journalMicBtn.classList.add('listening');
+      journalMicBtn.textContent = '⏹️';
+    }
+  });
+} else {
+  journalMicBtn.style.opacity = '0.4';
+  journalMicBtn.title = 'Voice not supported — use Chrome';
+}
+
+// ── HEALTH & WORKOUT ─────────────────────────────────────────────────────────
+let health = emptyHealth();
+let exerciseIdCounter = 0;
+
+function emptyHealth() {
+  return {
+    bg: { waking: '', bedtime: '' },
+    insulin: { waking: '', bedtime: '' },
+    bp: { wakingSys: '', wakingDia: '', bedSys: '', bedDia: '' },
+    meals: [
+      { food: '', carbs: '', protein: '', fat: '', cals: '' },
+      { food: '', carbs: '', protein: '', fat: '', cals: '' },
+      { food: '', carbs: '', protein: '', fat: '', cals: '' },
+      { food: '', carbs: '', protein: '', fat: '', cals: '' },
+    ],
+    workout: { routine: '', exercises: [] }
+  };
+}
+
+function gatherHealthFromFields() {
+  health.bg.waking = document.getElementById('bgWaking').value;
+  health.bg.bedtime = document.getElementById('bgBedtime').value;
+  health.insulin.waking = document.getElementById('insulinWaking').value;
+  health.insulin.bedtime = document.getElementById('insulinBedtime').value;
+  health.bp.wakingSys = document.getElementById('bpWakingSys').value;
+  health.bp.wakingDia = document.getElementById('bpWakingDia').value;
+  health.bp.bedSys = document.getElementById('bpBedSys').value;
+  health.bp.bedDia = document.getElementById('bpBedDia').value;
+  health.meals.forEach((m, i) => {
+    m.food = document.getElementById(`meal${i}Food`).value;
+    m.carbs = document.getElementById(`meal${i}Carbs`).value;
+    m.protein = document.getElementById(`meal${i}Protein`).value;
+    m.fat = document.getElementById(`meal${i}Fat`).value;
+    m.cals = document.getElementById(`meal${i}Cals`).value;
+  });
+  health.workout.routine = document.getElementById('workoutRoutine').value;
+  // exercises are kept in sync directly in `health.workout.exercises` via row inputs
+  document.querySelectorAll('.exercise-row').forEach(row => {
+    const id = row.dataset.id;
+    const ex = health.workout.exercises.find(e => String(e.id) === id);
+    if (!ex) return;
+    ex.name = row.querySelector('.ex-name').value;
+    ex.sets = row.querySelector('.ex-sets').value;
+    ex.reps = row.querySelector('.ex-reps').value;
+  });
+}
+
+let healthSaveTimer = null;
+function saveHealth() {
+  gatherHealthFromFields();
+  clearTimeout(healthSaveTimer);
+  healthSaveTimer = setTimeout(() => {
+    localStorage.setItem(HEALTH_PREFIX + currentDate, JSON.stringify(health));
+    refreshFolderList();
+    queueSheetsSave();
+  }, 500);
+}
+
+function loadHealth() {
+  try {
+    const saved = localStorage.getItem(HEALTH_PREFIX + currentDate);
+    health = saved ? JSON.parse(saved) : emptyHealth();
+  } catch { health = emptyHealth(); }
+  renderHealthFields();
+}
+
+function renderHealthFields() {
+  document.getElementById('bgWaking').value = health.bg.waking || '';
+  document.getElementById('bgBedtime').value = health.bg.bedtime || '';
+  document.getElementById('insulinWaking').value = health.insulin.waking || '';
+  document.getElementById('insulinBedtime').value = health.insulin.bedtime || '';
+  document.getElementById('bpWakingSys').value = health.bp.wakingSys || '';
+  document.getElementById('bpWakingDia').value = health.bp.wakingDia || '';
+  document.getElementById('bpBedSys').value = health.bp.bedSys || '';
+  document.getElementById('bpBedDia').value = health.bp.bedDia || '';
+  health.meals.forEach((m, i) => {
+    document.getElementById(`meal${i}Food`).value = m.food || '';
+    document.getElementById(`meal${i}Carbs`).value = m.carbs || '';
+    document.getElementById(`meal${i}Protein`).value = m.protein || '';
+    document.getElementById(`meal${i}Fat`).value = m.fat || '';
+    document.getElementById(`meal${i}Cals`).value = m.cals || '';
+  });
+  document.getElementById('workoutRoutine').value = health.workout.routine || '';
+  renderExerciseList();
+}
+
+function renderExerciseList() {
+  const container = document.getElementById('exerciseList');
+  container.innerHTML = '';
+  if (!health.workout.exercises.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = 'No exercises logged yet — add one below';
+    container.appendChild(empty);
+    return;
+  }
+  const header = document.createElement('div');
+  header.className = 'exercise-row';
+  header.style.fontSize = '10px';
+  header.style.color = 'var(--muted)';
+  header.style.textTransform = 'uppercase';
+  header.innerHTML = `<span>Exercise</span><span>Sets</span><span>Reps done</span><span></span>`;
+  container.appendChild(header);
+
+  health.workout.exercises.forEach(ex => {
+    const row = document.createElement('div');
+    row.className = 'exercise-row';
+    row.dataset.id = ex.id;
+    row.innerHTML = `
+      <input class="health-input ex-name" placeholder="e.g. Bench press" value="${escHtml(ex.name || '')}" oninput="saveHealth()">
+      <input class="health-input ex-sets" placeholder="3" inputmode="numeric" value="${escHtml(ex.sets || '')}" oninput="saveHealth()">
+      <input class="health-input ex-reps" placeholder="10,10,8" value="${escHtml(ex.reps || '')}" oninput="saveHealth()">
+      <button class="exercise-remove" onclick="removeExerciseRow(${ex.id})" title="Remove">×</button>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function addExerciseRow() {
+  gatherHealthFromFields();
+  health.workout.exercises.push({ id: Date.now() + (exerciseIdCounter++), name: '', sets: '', reps: '' });
+  renderExerciseList();
+  saveHealth();
+}
+
+function removeExerciseRow(id) {
+  gatherHealthFromFields();
+  health.workout.exercises = health.workout.exercises.filter(e => e.id !== id);
+  renderExerciseList();
+  saveHealth();
+}
+
+// ── GOOGLE INTEGRATION (Sheets storage + Calendar sync) ──────────────────────
+const GOOGLE_CLIENT_ID = '962390192309-gfpni2qmkcl2mjeh90urffssl5e9tvag.apps.googleusercontent.com';
+const GOOGLE_SCOPES = [
+  'https://www.googleapis.com/auth/spreadsheets',
+  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/drive.metadata.readonly'
+].join(' ');
+const SHEET_FILE_NAME = 'Benny Taskboard Data';
+
+let gConnected = false;
+let accessToken = null;
+let tokenClient = null;
+let sheetId = localStorage.getItem('bennySheetId') || null;
+let sheetRowIndex = {}; // dateString -> 1-indexed sheet row number
+
+function updateGoogleStatus(connected, message) {
+  const el = document.getElementById('googleStatus');
+  const text = document.getElementById('googleStatusText');
+  const btn = document.getElementById('googleConnectBtn');
+  el.classList.toggle('connected', !!connected);
+  el.classList.toggle('error', !!message);
+  text.textContent = message || (connected ? 'Synced to Google' : 'Not connected');
+  btn.textContent = connected ? 'Disconnect' : 'Connect Google';
+  btn.className = 'google-connect-btn' + (connected ? ' disconnect' : '');
+  btn.onclick = connected ? disconnectGoogle : connectGoogle;
+}
+
+function initGoogleAuth() {
+  if (!window.google || !google.accounts || !google.accounts.oauth2) {
+    // GIS script not loaded yet (e.g. slow network) — retry shortly
+    setTimeout(initGoogleAuth, 500);
+    return;
+  }
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: GOOGLE_SCOPES,
+    callback: () => {} // overridden per-call in requestToken()
+  });
+  if (localStorage.getItem('bennyGoogleConnected')) {
+    trySilentConnect();
+  }
+}
+
+function requestToken(promptVal) {
+  return new Promise((resolve, reject) => {
+    if (!tokenClient) { reject(new Error('Google sign-in not ready yet')); return; }
+    tokenClient.callback = (resp) => {
+      if (resp.error) { reject(resp); return; }
+      accessToken = resp.access_token;
+      resolve(resp);
+    };
+    tokenClient.requestAccessToken({ prompt: promptVal });
+  });
+}
+
+async function connectGoogle() {
+  updateGoogleStatus(false, 'Connecting…');
+  try {
+    await requestToken('consent');
+    gConnected = true;
+    localStorage.setItem('bennyGoogleConnected', '1');
+    updateGoogleStatus(true);
+    await afterConnect();
+  } catch (e) {
+    console.error('Google connect failed', e);
+    gConnected = false;
+    updateGoogleStatus(false, 'Connection failed — try again');
+  }
+}
+
+async function trySilentConnect() {
+  try {
+    await requestToken('');
+    gConnected = true;
+    updateGoogleStatus(true);
+    await afterConnect();
+  } catch (e) {
+    gConnected = false;
+    updateGoogleStatus(false);
+  }
+}
+
+function disconnectGoogle() {
+  gConnected = false;
+  accessToken = null;
+  localStorage.removeItem('bennyGoogleConnected');
+  updateGoogleStatus(false);
+}
+
+async function afterConnect() {
+  await ensureSheet();
+  await loadDateIntoBoard(currentDate);
+}
+
+// Generic authenticated fetch wrapper with one silent-refresh retry on 401
+async function apiFetch(url, opts = {}) {
+  opts.headers = Object.assign(
+    { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+    opts.headers || {}
+  );
+  let res;
+  try {
+    res = await fetch(url, opts);
+  } catch (e) {
+    console.error('Network error calling Google API', e);
+    return null;
+  }
+  if (res.status === 401) {
+    try {
+      await requestToken('');
+      opts.headers['Authorization'] = 'Bearer ' + accessToken;
+      res = await fetch(url, opts);
+    } catch (e) {
+      updateGoogleStatus(false, 'Google sign-in expired — reconnect');
+      return null;
+    }
+  }
+  if (!res.ok) {
+    console.error('Google API error', res.status, await res.text().catch(() => ''));
+    return null;
+  }
+  if (res.status === 204) return {};
+  return res.json().catch(() => ({}));
+}
+
+// Find (or create) the spreadsheet that stores all day data
+async function ensureSheet() {
+  if (sheetId) {
+    const check = await apiFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=spreadsheetId`);
+    if (check && check.spreadsheetId) return;
+    sheetId = null;
+  }
+  const q = encodeURIComponent(`name='${SHEET_FILE_NAME}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
+  const search = await apiFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`);
+  if (search && search.files && search.files.length) {
+    sheetId = search.files[0].id;
+  } else {
+    const created = await apiFetch('https://sheets.googleapis.com/v4/spreadsheets', {
+      method: 'POST',
+      body: JSON.stringify({
+        properties: { title: SHEET_FILE_NAME },
+        sheets: [{
+          properties: { title: 'Data' },
+          data: [{ startRow: 0, startColumn: 0, rowData: [{ values: [
+            { userEnteredValue: { stringValue: 'date' } },
+            { userEnteredValue: { stringValue: 'tasks' } },
+            { userEnteredValue: { stringValue: 'health' } },
+            { userEnteredValue: { stringValue: 'gratitude' } },
+            { userEnteredValue: { stringValue: 'journal' } }
+          ] }] }]
+        }]
+      })
+    });
+    if (created && created.spreadsheetId) sheetId = created.spreadsheetId;
+  }
+  if (sheetId) localStorage.setItem('bennySheetId', sheetId);
+  await refreshRowIndex();
+}
+
+// Rebuild the date -> row-number map from column A
+async function refreshRowIndex() {
+  if (!sheetId) return;
+  const res = await apiFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Data!A2:A10000`);
+  sheetRowIndex = {};
+  (res && res.values || []).forEach((row, i) => {
+    if (row[0]) sheetRowIndex[row[0]] = i + 2; // +2: header row + 1-indexing
+  });
+}
+
+function applySheetRow(row) {
+  try { tasks = row[1] ? JSON.parse(row[1]) : []; } catch { tasks = []; }
+  try { health = row[2] ? JSON.parse(row[2]) : emptyHealth(); } catch { health = emptyHealth(); }
+  let grat = {};
+  try { grat = row[3] ? JSON.parse(row[3]) : {}; } catch {}
+  document.getElementById('gratitude1').value = grat.g1 || '';
+  document.getElementById('gratitude2').value = grat.g2 || '';
+  document.getElementById('gratitude3').value = grat.g3 || '';
+  document.getElementById('journalText').value = row[4] || '';
+  updateWordCount();
+  // cache locally too, without re-triggering a cloud push
+  localStorage.setItem(TASK_PREFIX + currentDate, JSON.stringify(tasks));
+  localStorage.setItem(HEALTH_PREFIX + currentDate, JSON.stringify(health));
+  localStorage.setItem(GRAT_PREFIX + currentDate, JSON.stringify(grat));
+  localStorage.setItem(JOURNAL_PREFIX + currentDate, row[4] || '');
+  render();
+  renderHealthFields();
+}
+
+let sheetsSaveTimer = null;
+function queueSheetsSave() {
+  if (!gConnected) return;
+  clearTimeout(sheetsSaveTimer);
+  sheetsSaveTimer = setTimeout(pushCurrentDayToSheet, 1200);
+}
+
+async function pushCurrentDayToSheet() {
+  if (!gConnected || !sheetId) return;
+  const grat = {
+    g1: document.getElementById('gratitude1').value,
+    g2: document.getElementById('gratitude2').value,
+    g3: document.getElementById('gratitude3').value,
+  };
+  const journalVal = document.getElementById('journalText').value;
+  const rowValues = [currentDate, JSON.stringify(tasks), JSON.stringify(health), JSON.stringify(grat), journalVal];
+  const rowNum = sheetRowIndex[currentDate];
+  if (rowNum) {
+    await apiFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Data!A${rowNum}:E${rowNum}?valueInputOption=RAW`, {
+      method: 'PUT',
+      body: JSON.stringify({ values: [rowValues] })
+    });
+  } else {
+    await apiFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Data!A:E:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+      method: 'POST',
+      body: JSON.stringify({ values: [rowValues] })
+    });
+    await refreshRowIndex();
+    refreshFolderList();
+  }
+}
+
+// ── CALENDAR SYNC ─────────────────────────────────────────────────────────────
+const CALENDAR_BLOCK_HOURS = { morning: 9, afternoon: 13, evening: 17 };
+
+async function pullCalendarEvents() {
+  if (!gConnected) return;
+  const dayStart = new Date(currentDate); dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(currentDate); dayEnd.setHours(23, 59, 59, 999);
+  const params = new URLSearchParams({
+    timeMin: dayStart.toISOString(),
+    timeMax: dayEnd.toISOString(),
+    singleEvents: 'true',
+    orderBy: 'startTime'
+  });
+  const res = await apiFetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`);
+  if (!res || !res.items) return;
+
+  const existingIds = new Set(tasks.filter(t => t.calendarEventId).map(t => t.calendarEventId));
+  let added = false;
+  res.items.forEach(ev => {
+    if (!ev.start || existingIds.has(ev.id) || ev.status === 'cancelled') return;
+    const isTimed = !!ev.start.dateTime;
+    const startDt = isTimed ? new Date(ev.start.dateTime) : new Date(ev.start.date);
+    const hour = isTimed ? startDt.getHours() : 9;
+    let block = 'morning';
+    if (hour >= 16) block = 'evening'; else if (hour >= 12) block = 'afternoon';
+    tasks.push({
+      id: 'cal_' + ev.id,
+      text: ev.summary || '(untitled event)',
+      block, cat: 'calendar', done: false,
+      fromCalendar: true,
+      calendarEventId: ev.id
+    });
+    added = true;
+  });
+  if (added) { saveTasks(); render(); }
+}
+
+async function syncTaskToCalendar(task) {
+  if (!gConnected || task.fromCalendar) return;
+  const hour = CALENDAR_BLOCK_HOURS[task.block] || 9;
+  const start = new Date(currentDate); start.setHours(hour, 0, 0, 0);
+  const end = new Date(start.getTime() + 30 * 60000);
+  const body = JSON.stringify({
+    summary: task.text,
+    start: { dateTime: start.toISOString() },
+    end: { dateTime: end.toISOString() }
+  });
+  try {
+    if (task.calendarEventId) {
+      await apiFetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${task.calendarEventId}`, { method: 'PATCH', body });
+    } else {
+      const res = await apiFetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', { method: 'POST', body });
+      if (res && res.id) {
+        task.calendarEventId = res.id;
+        localStorage.setItem(TASK_PREFIX + currentDate, JSON.stringify(tasks));
+      }
+    }
+  } catch (e) { console.error('Calendar sync failed', e); }
+}
+
+async function deleteCalendarEvent(task) {
+  if (!gConnected || !task.calendarEventId) return;
+  try {
+    await apiFetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${task.calendarEventId}`, { method: 'DELETE' });
+  } catch (e) { console.error('Calendar delete failed', e); }
+}
+
+
+function formatDateLabel(dateStr) {
+  const dt = new Date(dateStr);
+  return dt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function updateDateDisplay() {
+  const label = formatDateLabel(currentDate);
+  document.getElementById('dateDisplay').textContent = label;
+
+  const isToday = currentDate === actualToday;
+  document.getElementById('pastDayBanner').classList.toggle('show', !isToday);
+  if (!isToday) document.getElementById('pastDayLabel').textContent = label;
+}
+
+// Scan localStorage (and the cloud sheet, if connected) for every date that has saved entries
+function getSavedDates() {
+  const dates = new Set([actualToday]);
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    [TASK_PREFIX, GRAT_PREFIX, JOURNAL_PREFIX, HEALTH_PREFIX].forEach(prefix => {
+      if (key.startsWith(prefix)) dates.add(key.slice(prefix.length));
+    });
+  }
+  if (gConnected) Object.keys(sheetRowIndex).forEach(d => dates.add(d));
+  return Array.from(dates).sort((a, b) => new Date(b) - new Date(a));
+}
+
+function refreshFolderList() {
+  const select = document.getElementById('folderSelect');
+  const dates = getSavedDates();
+  select.innerHTML = '<option value="">📁 Day folders…</option>' + dates.map(d => {
+    const tag = d === actualToday ? ' (Today)' : '';
+    const cloudTag = gConnected && sheetRowIndex[d] ? ' ☁️' : '';
+    return `<option value="${d}" ${d === currentDate ? 'selected' : ''}>${formatDateLabel(d)}${tag}${cloudTag}</option>`;
+  }).join('');
+}
+
+async function loadDateIntoBoard(dateStr) {
+  currentDate = dateStr;
+  // Show local data instantly
+  loadTasks();
+  render();
+  loadGratitude();
+  loadJournal();
+  loadHealth();
+  updateDateDisplay();
+  refreshFolderList();
+
+  // Then reconcile with the cloud, if connected
+  if (gConnected) {
+    await refreshRowIndex();
+    if (sheetRowIndex[dateStr]) {
+      const res = await apiFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Data!A${sheetRowIndex[dateStr]}:E${sheetRowIndex[dateStr]}`);
+      if (res && res.values && res.values[0]) applySheetRow(res.values[0]);
+    }
+    pullCalendarEvents();
+    refreshFolderList();
+  }
+}
+
+function onFolderChange(value) {
+  if (!value) return;
+  loadDateIntoBoard(value);
+}
+
+function goToToday() {
+  loadDateIntoBoard(actualToday);
+}
+
+// Check every 30s whether the calendar date has rolled over (i.e. it's now after midnight)
+function checkMidnightRollover() {
+  const now = new Date().toDateString();
+  if (now === actualToday) return;
+
+  const wasOnToday = (currentDate === actualToday);
+  actualToday = now;
+  refreshFolderList();
+
+  if (wasOnToday) {
+    // Auto-advance the open board into the new, blank day
+    loadDateIntoBoard(actualToday);
+  } else {
+    // User is browsing an old day — just keep the folder list current, don't yank them away
+    updateDateDisplay();
+  }
+}
+setInterval(checkMidnightRollover, 30000);
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+loadTasks();
+render();
+loadGratitude();
+loadJournal();
+loadHealth();
+updateDateDisplay();
+refreshFolderList();
+initGoogleAuth();
+</script>
+</body>
+</html>
